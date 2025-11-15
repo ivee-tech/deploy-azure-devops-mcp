@@ -1,0 +1,58 @@
+trigger:
+  none
+  # branches:
+  #   include: [ main ]
+
+stages:
+- stage: Build
+  displayName: Build MCP Server
+  jobs:
+  - job: build
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - checkout: none
+    - script: git clone https://github.com/microsoft/azure-devops-mcp.git
+      displayName: Clone Azure DevOps MCP source
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '20.x'
+    - script: npm ci
+      displayName: Install dependencies
+      workingDirectory: $(System.DefaultWorkingDirectory)/azure-devops-mcp
+    - script: npm run build
+      displayName: Build
+      workingDirectory: $(System.DefaultWorkingDirectory)/azure-devops-mcp
+    - script: npm test
+      displayName: Test
+      continueOnError: false
+      workingDirectory: $(System.DefaultWorkingDirectory)/azure-devops-mcp
+    - task: ArchiveFiles@2
+      inputs:
+        rootFolderOrFile: $(System.DefaultWorkingDirectory)/azure-devops-mcp/dist
+        includeRootFolder: false
+        archiveType: zip
+        archiveFile: $(Build.ArtifactStagingDirectory)/ado-mcp.zip
+        replaceExistingArchive: true
+    - publish: $(Build.ArtifactStagingDirectory)/ado-mcp.zip
+      artifact: drop
+
+- stage: Deploy
+  displayName: Deploy to App Service
+  dependsOn: Build
+  jobs:
+  - deployment: deployWeb
+    environment: mcp-prod
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: drop
+          - task: AzureWebApp@1
+            displayName: Deploy ZIP to App Service
+            inputs:
+              azureSubscription: mngenvmcap572176
+              appType: webAppLinux
+              appName: ado-mcp
+              package: $(Pipeline.Workspace)/drop/ado-mcp.zip
