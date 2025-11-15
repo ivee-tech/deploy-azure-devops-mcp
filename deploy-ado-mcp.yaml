@@ -27,9 +27,6 @@ stages:
       displayName: Test
       continueOnError: false
       workingDirectory: $(System.DefaultWorkingDirectory)/azure-devops-mcp
-    - script: npm prune --omit=dev
-      displayName: Trim dev dependencies
-      workingDirectory: $(System.DefaultWorkingDirectory)/azure-devops-mcp
     - task: ArchiveFiles@2
       inputs:
         rootFolderOrFile: $(System.DefaultWorkingDirectory)/azure-devops-mcp
